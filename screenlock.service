@@ -1,0 +1,11 @@
+[Unit]
+Description=Lock sessions before suspend
+Before=sleep.target
+RefuseManualStart=true
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/loginctl lock-sessions
+
+[Install]
+WantedBy=sleep.target
