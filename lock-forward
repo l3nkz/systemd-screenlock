@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+
+import gi.repository.GLib as glib
+
+from dbus import SystemBus, Interface
+from dbus.mainloop.glib import DBusGMainLoop
+
+from os import environ
+from sys import exit
+
+from subprocess import Popen, DEVNULL
+from shlex import split as split_arguments
+
+from argparse import ArgumentParser, REMAINDER
+
+from logging import getLogger, StreamHandler, DEBUG
+
+
+logger = getLogger("locker")
+
+class LockHandler:
+    def __init__(self, locker, session):
+        self._locker = split_arguments(locker)
+        self._session = session
+
+        logger.debug("Create lock handler for {} with {}.".format(self._session, self._locker))
+
+        self._lock_process = None
+
+    def _callback(self):
+        logger.debug("Lock the session {}.".format(self._session))
+
+        if self._lock_process is None or \
+                self._lock_process.poll() is not None:
+            # Start the locker program
+            self._lock_process = Popen(self._locker, stdout=DEVNULL)
+        else:
+            logger.info("Lock process still running: {}.".format(self._lock_process.pid))
+
+    def _connect(self, bus):
+        logger.debug("Connect to 'Lock' signal for session {}.".format(self._session))
+
+        session_manager = Interface(
+                bus.get_object("org.freedesktop.login1", "/org/freedesktop/login1"),
+                dbus_interface="org.freedesktop.login1.Manager")
+
+        session = Interface(
+                bus.get_object("org.freedesktop.login1", session_manager.GetSession(self._session)),
+                dbus_interface="org.freedesktop.login1.Session")
+
+        # Connect to the 'Lock' signal of the current session
+        session.connect_to_signal("Lock", self._callback)
+
+    def run(self):
+        # Create the DBus connection
+        bus = SystemBus(mainloop=DBusGMainLoop(set_as_default=True))
+
+        # Connect to the signal
+        self._connect(bus)
+
+        # Start the main loop
+        mainloop = glib.MainLoop()
+
+        try:
+            logger.debug("Enter main loop.")
+            mainloop.run()
+        except KeyboardInterrupt:
+            pass
+
+
+if __name__ == "__main__":
+    logger.addHandler(StreamHandler())
+
+    commands = ArgumentParser(description="Session locking forwarder")
+
+    commands.add_argument("--debug", "-d", action="store_true",
+            dest="debug", help="Enable debug output")
+    commands.add_argument("locker", type=str, action="store", nargs=1,
+            help="The screen locker used to lock the session")
+    commands.add_argument("arguments", type=str, action="store",
+            nargs=REMAINDER, help="Additional arguments for the locker")
+
+    parsed_args = commands.parse_args()
+
+    if parsed_args.debug:
+        logger.setLevel(DEBUG)
+
+    screen_locker = " ".join(parsed_args.locker) + " " + " ".join(parsed_args.arguments)
+
+    try:
+        session = environ["XDG_SESSION_ID"]
+    except KeyError:
+        print("XDG_SESSION_ID not available in the environment!")
+        exit(1)
+
+    prog = LockHandler(screen_locker, session)
+
+    prog.run()
