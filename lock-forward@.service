@@ -1,6 +1,5 @@
 [Unit]
 Description=Forward lock of session to %I
-RefuseManualStart=true
 
 [Service]
 ExecStart=/usr/bin/lock-forward --debug %I
