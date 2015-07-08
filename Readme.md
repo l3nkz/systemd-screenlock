@@ -1,14 +1,12 @@
 # systemd-screenlock
 
-Description
-===========
+## Description
 
 This is a collection of systemd service files and programs which enable a user
 to automatically let systemd lock its X session when it goes to sleep.
 
 
-Usage
-=====
+## Usage
 
 To use it one just has to activate two simple systemd services.
 
@@ -34,3 +32,16 @@ To use it one just has to activate two simple systemd services.
    ```bash
    lock-forward slimlock
    ```
+
+### Combine with manual locking
+
+Some screen locker are not able to properly determine that the screen is already locked.
+Hence, if you already locked your screen manually and later put your computer to sleep,
+it will be locked twice. To prevent such an annoyance, it is also possible to use the
+lock-forward program to manually lock the screen. By using the following command, 
+lock-forward will properly lock your screen if it is not yet locked, as well as make sure
+that it is not locked later when the computer goes to sleep.
+
+```bash
+lock-now
+```
