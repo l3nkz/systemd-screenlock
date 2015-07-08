@@ -93,7 +93,7 @@ class Locker:
     def lock(self):
         if self._lock_process is None or \
                 self._lock_process.poll() is not None:
-            logger.debug("Lock the session.")
+            logger.info("Lock the session.")
 
             # Start the locker program
             self._lock_process = Popen(self._lock_program, stdout=DEVNULL)
